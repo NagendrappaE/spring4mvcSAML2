@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:security="http://www.springframework.org/schema/security"
+    xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/security
+       http://www.springframework.org/schema/security/spring-security.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd
+      ">
+      
+      <context:annotation-config/>
+<context:component-scan base-package="org.springframework.security.saml"/>
+
+	<!-- SAML Authentication Provider -->
+	<security:authentication-manager>
+		<security:authentication-provider
+			ref="samlAuthenticationProvider" />
+	</security:authentication-manager>
+
+	<!-- SAML Configuration -->
+	<security:http entry-point-ref="samlEntryPoint"
+		use-expressions="true">
+		<security:intercept-url pattern="/saml/**"
+			access="isAuthenticated()" />
+		<security:csrf disabled="true" />
+		<security:intercept-url
+			pattern="/fluxsession/keepalive" access="permitAll" />
+		<security:intercept-url pattern="/login"
+			access="permitAll" />
+		<security:intercept-url pattern="/Emandate/**"
+			access="permitAll" />
+		<security:intercept-url pattern="/loggedOut"
+			access="permitAll" />
+		<security:intercept-url pattern="/loginFailed"
+			access="permitAll" />
+		<security:intercept-url pattern="/**"
+			access="isAuthenticated()" />
+		<!-- <security:form-login login-page="/login"
+			authentication-success-handler-ref="loginSuccessHandler"
+			authentication-failure-url="/loginFailed"
+			always-use-default-target="false" /> -->
+		<security:logout logout-success-url="/loggedOut"
+			invalidate-session="true" delete-cookies="jsessionid" />
+		<!-- <security:custom-filter before="FIRST"
+			ref="metadataGeneratorFilter" /> -->
+		<security:custom-filter
+			after="BASIC_AUTH_FILTER" ref="samlFilter" />
+	</security:http>
+	
+	
+
+	<bean id="samlEntryPoint"
+		class="org.springframework.security.saml.SAMLEntryPoint">
+		<property name="defaultProfileOptions">
+			<bean
+				class="org.springframework.security.saml.websso.WebSSOProfileOptions">
+				<property name="binding"
+					value="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" />
+			</bean>
+		</property>
+	</bean>
+
+
+<bean id="samlLogger" class="org.springframework.security.saml.log.SAMLDefaultLogger"/>
+<bean id="consumer" class="org.springframework.security.saml.websso.WebSSOProfileConsumerImpl">
+<constructor-arg  ref="samlProcessor"/>
+
+<constructor-arg  ref="metadata"/>
+</bean>
+
+<bean id="samlProcessor" class="org.springframework.security.saml.processor.SAMLProcessorImpl">
+    <constructor-arg>
+        <list>
+            <ref bean="samlBindingImpl"/>
+        </list>
+    </constructor-arg>
+</bean>
+
+<bean id="samlBindingImpl" class="org.springframework.security.saml.processor.HTTPRedirectDeflateBinding">
+    <constructor-arg ref="parserPool"/>
+</bean>
+
+
+
+	
+
+	<!-- <bean id="trustEngine"
+		class="org.springframework.security.saml.trust.PKIXInformationResolver">
+		<constructor-arg ref="metadata" /> Reference to the CachingMetadataManager bean
+	</bean> -->
+
+
+<!-- <bean id="metadata" class="org.springframework.security.saml.metadata.CachingMetadataManager">
+    <constructor-arg>
+        <list>
+            Configure your metadata providers here
+            <bean class="org.opensaml.saml2.metadata.provider.HTTPMetadataProvider">
+                <constructor-arg>
+                    <value>https://dev-53681077.okta.com/app/exka2sbyx13nJqUST5d7/sso/saml/metadata</value> URL of the IDP metadata
+                </constructor-arg>
+                <constructor-arg>
+                    <value>500000</value> Metadata refresh time (in milliseconds)
+                </constructor-arg>
+                <property name="parserPool" ref="parserPool" />
+            </bean>
+        </list>
+    </constructor-arg>
+</bean> -->
+
+
+<bean id="metadata" class="org.springframework.security.saml.metadata.CachingMetadataManager">
+    <constructor-arg>
+        <list>
+            <bean class="org.springframework.security.saml.metadata.ExtendedMetadataDelegate">
+                <constructor-arg>
+                    <bean class="org.opensaml.saml2.metadata.provider.HTTPMetadataProvider">
+                        <constructor-arg>
+                            <value>https://dev-53681077.okta.com/app/exka2sbyx13nJqUST5d7/sso/saml/metadata</value>
+                        </constructor-arg>
+                        <constructor-arg>
+                            <value>5000</value>
+                        </constructor-arg>
+                        <property name="parserPool" ref="parserPool"/>
+                    </bean>
+                </constructor-arg>
+                <constructor-arg>
+                    <bean class="org.springframework.security.saml.metadata.ExtendedMetadata"/>
+                </constructor-arg>
+            </bean>
+            <!-- Add more metadata providers if needed -->
+        </list>
+    </constructor-arg>
+</bean>
+
+
+
+<bean id="samlContextProvider" class="org.springframework.security.saml.context.SAMLContextProviderImpl">
+    <!-- Configure the SAMLContextProvider properties if needed -->
+</bean>
+
+<bean id="metadataDisplayFilter" class="org.springframework.security.saml.metadata.MetadataDisplayFilter">
+    <constructor-arg ref="metadata" />
+</bean>
+
+
+
+
+	<bean id="samlAuthenticationProvider"
+		class="org.springframework.security.saml.SAMLAuthenticationProvider">
+		<property name="userDetails" ref="sAMLUserDetailsService" />
+		<property name="consumer" ref="consumer"/>
+		<property name="hokConsumer" ref="consumer"/>
+		<property name="samlLogger" ref="samlLogger"/>
+	</bean>
+
+
+	<bean id="samlFilter"
+		class="org.springframework.security.saml.SAMLProcessingFilter">
+		<constructor-arg>
+			<map>
+				<entry key="authenticationManager"
+					value-ref="samlAuthenticationManager" />
+			</map>
+		</constructor-arg>
+	</bean>
+
+	<bean id="samlAuthenticationManager"
+		class="org.springframework.security.authentication.ProviderManager">
+		<constructor-arg>
+			<list>
+				<ref bean="samlAuthenticationProvider" />
+			</list>
+		</constructor-arg>
+	</bean>
+	<bean id="sAMLUserDetailsService"
+		class="com.evolvus.mvcweb.service.SAMLUserDetailsServiceImpl" />
+
+
+
+	<bean id="parserPool"
+		class="org.opensaml.xml.parse.StaticBasicParserPool">
+		<property name="builderFeatures">
+			<map>
+				<entry
+					key="http://apache.org/xml/features/dom/defer-node-expansion"
+					value="false" />
+			</map>
+		</property>
+	</bean>
+
+
+
+
+	<bean id="keyStore"
+		class="org.springframework.ws.soap.security.support.KeyStoreFactoryBean">
+		<property name="location" value="${jkskeyStoreFile}" />
+		<property name="password" value="Flux@123" />
+		<property name="type" value="JKS" />
+		<!-- <property name="provider" value="BC"/> -->
+	</bean>
+
+	<bean id="keyManager"
+		class="org.springframework.security.saml.key.JKSKeyManager">
+		<constructor-arg ref="keyStore" />
+		<constructor-arg>
+			<map>
+				<entry key="key-alias" value="fluxpidp" />
+			</map>
+		</constructor-arg>
+		<constructor-arg value="Flux@123" />
+	</bean>
+
+
+</beans>
