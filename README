@@ -30,3 +30,14 @@ http://localhost:8080/spring4mvc/saml/web/student
 
 https://github.com/spring-attic/spring-security-saml/tree/main
 
+
+okta :developer account ddsWeb url configuration 
+
+
+Single Sign On URLhttp://localhost:8080/ddsWeb/saml/SSO
+Recipient URLhttp://localhost:8080/ddsWeb/saml/SSO
+Destination URLhttp://localhost:8080/ddsWeb/saml/SSO
+Audience Restrictionhttp://localhost:8080/ddsWeb/saml/metadata
+
+
+
